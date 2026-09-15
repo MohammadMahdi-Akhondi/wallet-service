@@ -30,6 +30,16 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
+LOCAL_APPS = [
+    "wallets.apps.WalletsConfig",
+]
+
+
+THIRD_PARTY_APPS = [
+    "rest_framework",
+    "drf_spectacular",
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -37,8 +47,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "rest_framework",
-    "wallets",
+    *THIRD_PARTY_APPS,
+    *LOCAL_APPS,
 ]
 
 MIDDLEWARE = [
@@ -130,4 +140,44 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [],
     "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+# Celery Config
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    "enqueue-due-withdrawals": {
+        "task": "wallets.tasks.enqueue_due_withdrawals",
+        "schedule": 600.0,
+    },
+    "recover-stale-processing-withdrawals": {
+        "task": "wallets.tasks.recover_stale_processing_withdrawals",
+        "schedule": 5.0,
+    },
+}
+
+# Third-Party Config
+THIRD_PARTY_TRANSFER_BASE_URL = "http://localhost:8010"
+THIRD_PARTY_TRANSFER_TIMEOUT = 3
+WITHDRAWAL_SCAN_LIMIT = 100
+WITHDRAWAL_STALE_PROCESSING_SECONDS = 300
+
+
+# Spectacular Config
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Wallet Service",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/",
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+
+
+# CORS Config
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True

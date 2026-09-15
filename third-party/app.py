@@ -1,7 +1,7 @@
-import threading
 import asyncio
-from flask import Flask, jsonify
 import random
+
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
