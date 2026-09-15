@@ -1,0 +1,10 @@
+[project]
+name = "wallet service"
+version = "1.0.0"
+description = "A Django-based wallet service that supports deposits and scheduled withdrawals with asynchronous processing using Celery"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"wallet/wallets/migrations/*.py" = ["RUF012"]
