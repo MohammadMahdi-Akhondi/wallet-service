@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-89ufi$15chz5o&js3*qv9#_=!q2*-iju27$(#me76)=67o&p5m"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-89ufi$15chz5o&js3*qv9#_=!q2*-iju27$(#me76)=67o&p5m")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",") if host.strip()]
 
 
 # Application definition
@@ -87,8 +88,12 @@ WSGI_APPLICATION = "wallet.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "wallet"),
+        "USER": os.environ.get("POSTGRES_USER", "wallet"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "wallet"),
+        "HOST": os.environ.get("POSTGRES_HOST", "db"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -144,16 +149,18 @@ REST_FRAMEWORK = {
 }
 
 # Celery Config
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_IMPORTS = ("wallets.tasks",)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULE = {
     "enqueue-due-withdrawals": {
         "task": "wallets.tasks.enqueue_due_withdrawals",
-        "schedule": 600.0,
+        "schedule": 5.0,
     },
     "recover-stale-processing-withdrawals": {
         "task": "wallets.tasks.recover_stale_processing_withdrawals",
@@ -162,10 +169,10 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # Third-Party Config
-THIRD_PARTY_TRANSFER_BASE_URL = "http://localhost:8010"
-THIRD_PARTY_TRANSFER_TIMEOUT = 3
-WITHDRAWAL_SCAN_LIMIT = 100
-WITHDRAWAL_STALE_PROCESSING_SECONDS = 300
+THIRD_PARTY_TRANSFER_BASE_URL = os.environ.get("THIRD_PARTY_TRANSFER_BASE_URL", "http://third-party:8010")
+THIRD_PARTY_TRANSFER_TIMEOUT = int(os.environ.get("THIRD_PARTY_TRANSFER_TIMEOUT", "3"))
+WITHDRAWAL_SCAN_LIMIT = int(os.environ.get("WITHDRAWAL_SCAN_LIMIT", "100"))
+WITHDRAWAL_STALE_PROCESSING_SECONDS = int(os.environ.get("WITHDRAWAL_STALE_PROCESSING_SECONDS", "300"))
 
 
 # Spectacular Config
