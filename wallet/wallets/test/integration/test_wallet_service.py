@@ -32,7 +32,7 @@ class WalletApiTests(TestCase):
         self.client = APIClient()
 
     def test_create_wallet(self):
-        response = self.client.post("/wallets/", data={}, format="json")
+        response = self.client.post("/v1/wallets/", data={}, format="json")
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Wallet.objects.count(), 1)
@@ -41,7 +41,7 @@ class WalletApiTests(TestCase):
     def test_deposit_increases_balance_and_writes_transaction(self):
         wallet = Wallet.objects.create()
 
-        response = self.client.post(f"/wallets/{wallet.uuid}/deposit", data={"amount": 250}, format="json")
+        response = self.client.post(f"/v1/wallets/{wallet.uuid}/deposit", data={"amount": 250}, format="json")
 
         self.assertEqual(response.status_code, 200)
         wallet.refresh_from_db()
@@ -54,7 +54,7 @@ class WalletApiTests(TestCase):
     def test_deposit_rejects_non_positive_amount(self):
         wallet = Wallet.objects.create()
 
-        response = self.client.post(f"/wallets/{wallet.uuid}/deposit", data={"amount": 0}, format="json")
+        response = self.client.post(f"/v1/wallets/{wallet.uuid}/deposit", data={"amount": 0}, format="json")
 
         self.assertEqual(response.status_code, 400)
         wallet.refresh_from_db()
@@ -65,7 +65,7 @@ class WalletApiTests(TestCase):
         execute_at = timezone.now() + timedelta(hours=1)
 
         response = self.client.post(
-            f"/wallets/{wallet.uuid}/withdraw",
+            f"/v1/wallets/{wallet.uuid}/withdrawal",
             data={"amount": 500, "execute_at": execute_at.isoformat()},
             format="json",
         )
@@ -81,7 +81,7 @@ class WalletApiTests(TestCase):
         execute_at = timezone.now() - timedelta(minutes=1)
 
         response = self.client.post(
-            f"/wallets/{wallet.uuid}/withdraw",
+            f"/v1/wallets/{wallet.uuid}/withdrawal",
             data={"amount": 500, "execute_at": execute_at.isoformat()},
             format="json",
         )
@@ -95,9 +95,10 @@ class WalletServiceTests(TestCase):
         wallet = Wallet.objects.create(balance=0)
         execute_at = timezone.now() + timedelta(minutes=5)
 
-        with patch("wallets.tasks.execute_withdrawal.apply_async") as apply_async:
-            with self.captureOnCommitCallbacks(execute=True):
-                withdrawal = schedule_withdrawal(wallet.uuid, 1000, execute_at)
+        with patch("wallets.tasks.execute_withdrawal.apply_async") as apply_async, self.captureOnCommitCallbacks(
+            execute=True
+        ):
+            withdrawal = schedule_withdrawal(wallet.uuid, 1000, execute_at)
 
         apply_async.assert_called_once_with(args=[withdrawal.id], eta=execute_at)
 
@@ -140,15 +141,14 @@ class WalletServiceTests(TestCase):
             status=Transaction.Status.SUCCESS,
         )
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Transaction.objects.create(
-                    wallet=wallet,
-                    withdrawal=withdrawal,
-                    type=Transaction.Type.WITHDRAWAL_CAPTURE,
-                    amount=-200,
-                    status=Transaction.Status.SUCCESS,
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Transaction.objects.create(
+                wallet=wallet,
+                withdrawal=withdrawal,
+                type=Transaction.Type.WITHDRAWAL_CAPTURE,
+                amount=-200,
+                status=Transaction.Status.SUCCESS,
+            )
 
     def test_create_capture_if_missing_returns_existing_capture(self):
         wallet = Wallet.objects.create(balance=500)
